@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/assets/fonts/PlusJakartaSans.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* Cricket Blast Design Tokens - OKLCH */
+    /* Background: white */
+    --background: 1 0 0;
+    --foreground: 0.18 0.02 30;
+
+    /* Card: white */
+    --card: 1 0 0;
+    --card-foreground: 0.18 0.02 30;
+
+    /* Popover */
+    --popover: 1 0 0;
+    --popover-foreground: 0.18 0.02 30;
+
+    /* Primary: brand green #2E7D32 -> oklch ~0.48 0.16 145 */
+    --primary: 0.48 0.16 145;
+    --primary-foreground: 1 0 0;
+
+    /* Secondary: warm orange accent #D79A4B -> oklch ~0.71 0.12 65 */
+    --secondary: 0.98 0.01 75;
+    --secondary-foreground: 0.18 0.02 30;
+
+    /* Muted */
+    --muted: 0.96 0 0;
+    --muted-foreground: 0.52 0.01 30;
+
+    /* Accent: warm orange */
+    --accent: 0.71 0.12 65;
+    --accent-foreground: 1 0 0;
+
+    /* Destructive */
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 1 0 0;
+
+    /* Border */
+    --border: 0.91 0.005 30;
+    --input: 0.91 0.005 30;
+    --ring: 0.48 0.16 145;
+
+    /* Charts */
+    --chart-1: 0.48 0.16 145;
+    --chart-2: 0.71 0.12 65;
+    --chart-3: 0.35 0.13 145;
+    --chart-4: 0.82 0.12 100;
+    --chart-5: 0.65 0.15 30;
+
+    /* Sidebar */
+    --sidebar: 1 0 0;
+    --sidebar-foreground: 0.18 0.02 30;
+    --sidebar-primary: 0.48 0.16 145;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.96 0.005 145;
+    --sidebar-accent-foreground: 0.18 0.02 30;
+    --sidebar-border: 0.91 0.005 30;
+    --sidebar-ring: 0.48 0.16 145;
+
+    /* Custom brand tokens */
+    --brand-green: 0.48 0.16 145;
+    --brand-green-dark: 0.32 0.13 145;
+    --brand-green-footer: 0.26 0.1 145;
+    --brand-warm: 0.71 0.12 65;
+    --brand-warm-bg: 0.98 0.04 75;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  }
+}
+
+/* Cricket custom animations */
+@keyframes ball-travel {
+  from {
+    transform: translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(200px) scale(0.8);
+    opacity: 0.9;
+  }
+}
+
+@keyframes result-pop {
+  0% {
+    transform: scale(0.5) translateY(-20px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 8px oklch(0.48 0.16 145 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 24px oklch(0.48 0.16 145 / 0.8);
+  }
+}
+
+.animate-result-pop {
+  animation: result-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-fade-slide-up {
+  animation: fade-slide-up 0.5s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}

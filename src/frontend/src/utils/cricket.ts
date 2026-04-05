@@ -3,7 +3,6 @@ import type {
   BallDrift,
   BallOutcome,
   Difficulty,
-  ShotType,
 } from "../types/game";
 
 type OutcomeWeights = {
@@ -15,15 +14,7 @@ type OutcomeWeights = {
   six: number;
 };
 
-const SHOT_WEIGHTS: Record<ShotType, OutcomeWeights> = {
-  defend: { wicket: 3, dot: 45, one: 35, two: 12, four: 4, six: 1 },
-  drive: { wicket: 10, dot: 20, one: 25, two: 20, four: 20, six: 5 },
-  pull: { wicket: 15, dot: 15, one: 15, two: 10, four: 25, six: 20 },
-  sweep: { wicket: 12, dot: 18, one: 22, two: 20, four: 22, six: 6 },
-  loft: { wicket: 22, dot: 10, one: 10, two: 5, four: 15, six: 38 },
-};
-
-// ─── Directional Shot Weights ────────────────────────────────────────────────
+// ─── Directional Shot Weights ─────────────────────────────────────────────
 
 /** Base weights for each arrow direction when matched vs mismatched vs loft */
 const DIRECTIONAL_BASE: OutcomeWeights = {
@@ -98,124 +89,7 @@ function applyDifficultyWeights(
   return weights;
 }
 
-// ─── Commentary ──────────────────────────────────────────────────────────────
-
-const COMMENTARY: Record<ShotType, Record<string, string[]>> = {
-  defend: {
-    wicket: [
-      "Clean bowled! The stumps are shattered!",
-      "Edge to slip! What a delivery, beat the outside edge!",
-      "Plumb LBW! Never in doubt, finger goes up!",
-    ],
-    dot: [
-      "Tidy defensive shot. Good bat-pad gap.",
-      "Solid block back to the bowler.",
-      "Played defensively, no run.",
-    ],
-    one: ["Nudged behind square for a single.", "Pushed into the gap for one."],
-    two: [
-      "Defended into the covers, they run two!",
-      "Good placement, two runs.",
-    ],
-    four: [
-      "Pushed through covers, races away for FOUR!",
-      "Defensive push, finds the gap — FOUR!",
-    ],
-    six: ["Mis-hit somehow goes over the in-field for SIX! Unbelievable!"],
-  },
-  drive: {
-    wicket: [
-      "Edge to the keeper! Driving at a wide one!",
-      "Caught at mid-off! Mis-timed the drive.",
-      "Bowled through the gate! Driving on the up.",
-    ],
-    dot: [
-      "Driven straight to mid-off. No run.",
-      "Back to the bowler, well fielded.",
-    ],
-    one: [
-      "Driven for a single through covers.",
-      "Pushed for one through the off side.",
-    ],
-    two: ["Driven powerfully, they get back for two!", "Cover drive for two!"],
-    four: [
-      "Width outside off, driven straight for FOUR!",
-      "Textbook cover drive — FOUR! The crowd roars!",
-      "Driven down the ground, beautiful timing — FOUR!",
-    ],
-    six: [
-      "SMASHED! That's gone into orbit over long-on! SIX!",
-      "Monster drive! Clears the rope easily — SIX!",
-    ],
-  },
-  pull: {
-    wicket: [
-      "Top edge! Goes high and taken at fine leg!",
-      "Hit it right out of the middle straight to deep square leg!",
-      "Caught on the boundary attempting the pull!",
-    ],
-    dot: [
-      "Dropped short, but can't get it away. Dot ball.",
-      "Pulled straight to the fielder.",
-    ],
-    one: [
-      "Pulled for a quick single.",
-      "Short ball, swivels and pulls for one.",
-    ],
-    two: ["Pulled hard, deep square leg can't stop it — two!"],
-    four: [
-      "Dropped short, pulled away for FOUR!",
-      "Rocks back and pulls — FOUR through mid-wicket!",
-      "Short and wide, crunched through square leg — FOUR!",
-    ],
-    six: [
-      "Pulled with immense power — SMASHED for SIX over mid-wicket!",
-      "Long hop, dismissed it over the rope — SIX!",
-      "Upper cut for SIX over third man! What a shot!",
-    ],
-  },
-  sweep: {
-    wicket: [
-      "Misses the sweep, bowled around the legs!",
-      "Top-edged sweep, taken by fine leg!",
-      "Sweeps straight to square leg.",
-    ],
-    dot: [
-      "Sweeps straight to the fielder. Dot.",
-      "Good delivery, sweep kept out.",
-    ],
-    one: ["Swept for a single behind square.", "Sweep shot, only one run."],
-    two: ["Swept fine, they run two!", "Paddle sweep for two."],
-    four: [
-      "Swept perfectly fine of square — FOUR!",
-      "Reverse sweep through the off side — FOUR! Outfoxed the field!",
-    ],
-    six: [
-      "Scoop over fine leg — SIX! Audacious cricket!",
-      "Maximum sweep over backward square — SIX!",
-    ],
-  },
-  loft: {
-    wicket: [
-      "Caught at long-on! Mis-timed the loft badly!",
-      "Straight to mid-off on the boundary — wicket!",
-      "Skied it to the fielder at long-on! Simple catch.",
-    ],
-    dot: ["Lofted straight to the fielder inside the rope. Dot."],
-    one: ["Lofted over covers, lands in the gap — one run."],
-    two: ["Lofted into the gap, quick running for two."],
-    four: [
-      "Lofted over the in-field, bounces safely — FOUR!",
-      "Hit high and handsome, just clears the in-field — FOUR!",
-    ],
-    six: [
-      "MASSIVE! CLEARED THE ROPE BY MILES — SIX!",
-      "Launched into the second tier! SIX and they love it!",
-      "This one's in the car park! Enormous SIX!",
-      "That's out of the stadium — SIX! The crowd goes wild!",
-    ],
-  },
-};
+// ─── Commentary ─────────────────────────────────────────────────────────
 
 export const DIRECTIONAL_COMMENTARY: Record<string, string[]> = {
   good_left: [
@@ -404,7 +278,7 @@ export const powerPlayCommentary: string[] = [
   "Free-hitting territory! Fielders are restricted in the Powerplay circle!",
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────
 
 function pickWithWeights(weights: OutcomeWeights): keyof OutcomeWeights {
   const total =
@@ -432,29 +306,7 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-export function resolveShotOutcome(shot: ShotType): BallOutcome {
-  const weights = SHOT_WEIGHTS[shot];
-  const outcome = pickWithWeights(weights);
-  const commentarySet = COMMENTARY[shot][outcome];
-  const commentary = pickRandom(commentarySet);
-
-  const runsMap: Record<string, number> = {
-    wicket: 0,
-    dot: 0,
-    one: 1,
-    two: 2,
-    four: 4,
-    six: 6,
-  };
-
-  return {
-    runs: runsMap[outcome],
-    isWicket: outcome === "wicket",
-    commentary,
-  };
-}
+// ─── Public API ─────────────────────────────────────────────────────────────────
 
 /**
  * Directional shot resolver with difficulty awareness.

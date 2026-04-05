@@ -1,5 +1,3 @@
-export type ShotType = "defend" | "drive" | "pull" | "sweep" | "loft";
-
 export type ArrowKey = "left" | "right" | "up";
 
 export type BallOutcome = {
@@ -52,20 +50,4 @@ export type LeaderboardEntry = {
   name: string;
   score: number;
   country: string;
-};
-
-export type GameMode = {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  target: number;
-  overs: number;
-};
-
-export type Player = {
-  name: string;
-  runs: number;
-  balls: number;
-  avatarColor: string;
 };

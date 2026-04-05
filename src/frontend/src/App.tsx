@@ -1,26 +1,35 @@
 import { useState } from "react";
 import CricketGame from "./components/CricketGame";
 import LandingPage from "./components/LandingPage";
+import type { Difficulty } from "./types/game";
 
 export type GameMode = "t20" | "super-over" | "quick";
 
 export type AppScreen = "landing" | "game";
 
-const GAME_CONFIGS: Record<GameMode, { target: number; balls: number }> = {
-  // T20 = 20 overs (120 balls), realistic target ~165
-  t20: { target: 165, balls: 120 },
-  // Super Over = 1 over (6 balls), target 20
-  "super-over": { target: 20, balls: 6 },
-  // Quick Match = 3 overs (18 balls), target 50
-  quick: { target: 50, balls: 18 },
-};
-
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>("landing");
   const [gameMode, setGameMode] = useState<GameMode>("t20");
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [t20Target] = useState<number>(
+    () => Math.floor(Math.random() * 21) + 120,
+  );
+  const [superOverTarget] = useState<number>(
+    () => Math.floor(Math.random() * 5) + 8,
+  );
+  const [quickTarget] = useState<number>(
+    () => Math.floor(Math.random() * 11) + 25,
+  );
 
-  const handlePlay = (mode: GameMode = "t20") => {
+  const getConfig = (mode: GameMode) => {
+    if (mode === "t20") return { target: t20Target, balls: 120 };
+    if (mode === "super-over") return { target: superOverTarget, balls: 6 };
+    return { target: quickTarget, balls: 18 };
+  };
+
+  const handlePlay = (mode: GameMode = "t20", diff?: Difficulty) => {
     setGameMode(mode);
+    if (diff) setDifficulty(diff);
     setScreen("game");
   };
 
@@ -31,12 +40,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background font-sans">
       {screen === "landing" ? (
-        <LandingPage onPlay={handlePlay} />
+        <LandingPage onPlay={handlePlay} difficulty={difficulty} />
       ) : (
         <CricketGame
-          config={GAME_CONFIGS[gameMode]}
+          config={getConfig(gameMode)}
           gameMode={gameMode}
           onBack={handleBackToLanding}
+          difficulty={difficulty}
         />
       )}
     </div>

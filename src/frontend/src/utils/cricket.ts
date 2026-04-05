@@ -1,4 +1,10 @@
-import type { ArrowKey, BallDrift, BallOutcome, ShotType } from "../types/game";
+import type {
+  ArrowKey,
+  BallDrift,
+  BallOutcome,
+  Difficulty,
+  ShotType,
+} from "../types/game";
 
 type OutcomeWeights = {
   wicket: number;
@@ -64,6 +70,33 @@ const DIRECTIONAL_LOFT_MISMATCH: OutcomeWeights = {
   four: 15,
   six: 30,
 };
+
+function applyDifficultyWeights(
+  weights: OutcomeWeights,
+  difficulty: Difficulty,
+): OutcomeWeights {
+  if (difficulty === "easy") {
+    return {
+      wicket: weights.wicket * 0.6,
+      dot: weights.dot,
+      one: weights.one,
+      two: weights.two,
+      four: weights.four * 1.2,
+      six: weights.six * 1.2,
+    };
+  }
+  if (difficulty === "hard") {
+    return {
+      wicket: weights.wicket * 1.4,
+      dot: weights.dot,
+      one: weights.one,
+      two: weights.two,
+      four: weights.four * 0.8,
+      six: weights.six * 0.8,
+    };
+  }
+  return weights;
+}
 
 // ─── Commentary ──────────────────────────────────────────────────────────────
 
@@ -184,60 +217,192 @@ const COMMENTARY: Record<ShotType, Record<string, string[]>> = {
   },
 };
 
-const DIRECTIONAL_COMMENTARY: Record<string, string[]> = {
+export const DIRECTIONAL_COMMENTARY: Record<string, string[]> = {
   good_left: [
     "Reads the swing perfectly — pulled through leg for FOUR!",
     "Excellent read — sweeps it fine, timing is immaculate!",
     "Saw the in-swinger early, flicks it stylishly!",
+    "THUMPED through mid-wicket! Absolutely smoked!",
+    "Down the ground on the leg side — beautiful placement!",
+    "Masterful glance through fine leg — stroked to the boundary!",
+    "Reads the drift and works it perfectly square — magnificent!",
+    "Low full toss, whipped off the pads with authority — FOUR!",
+    "Helicopter stance, whips it to long-on for a maximum!",
+    "Classic Dhoni flick — wrists of steel, boundary all day!",
+    "Inside out to the leg side — cheeky and brilliant!",
+    "Flick over fine leg — audacious, top-class batsmanship!",
+    "Behind square, races away — they won't catch that!",
+    "Tucked behind square for a cheeky single — smart running!",
+    "Paddle scoop down to fine leg, perfectly executed!",
   ],
   good_right: [
     "Down the track, drives hard through extra cover — FOUR!",
     "Width outside off, crashes it through point — FOUR!",
     "Beautiful drive, off-side boundary!",
+    "CRACKED through the covers! Textbook drive!",
+    "Extra cover drive — a thing of sheer beauty!",
+    "Advances and lofts over the off side — superb!",
+    "Cuts ferociously through point — nobody stopping that!",
+    "Stands tall and cracks it through the covers, FOUR!",
+    "Late cut for four — pure class behind point!",
+    "Punched hard through mid-off — timed to perfection!",
+    "Off-drive executed flawlessly, hugs the ground all the way!",
+    "Back-cut over gully — pure improvisation, FOUR!",
+    "Slaps it through extra cover — what a shot!",
+    "Opens the face, steers it to third man — clever!",
+    "Straight drive down the pitch — pure white-ball cricket!",
   ],
   loft: [
     "Goes aerial — big swing of the bat!",
     "Launches it into the stands! Big hit!",
     "Takes on the long boundary — high, handsome shot!",
+    "MASSIVE maximum! That's into the upper tier!",
+    "Gets under it and tonks it sky high — SIX!",
+    "Goes big from ball one — helicopter finish style!",
+    "Dances down and lofts — crowd goes WILD!",
+    "Clears long-on with room to spare — monster hit!",
+    "Into the stands for the second time this over!",
+    "Picks the length early, dispatches it to the boundary!",
   ],
   miss_timed: [
     "Late on the shot — thick outside edge!",
     "Beat by the delivery, plays down the wrong line.",
     "Mistimed completely, straight to the fielder.",
+    "Got a leading edge — lucky not to be out!",
+    "Plays across the line — doesn't get the connection!",
+    "Footwork all wrong, miscued through the off side.",
+    "Plays at it loosely, thick inside edge saves the day.",
+    "Doesn't read the swing, ends up defending thin air!",
+    "Horrible footwork, played all over the place.",
+    "Gets an outside edge — creeps to third man for nothing.",
   ],
   missed_ball: [
     "Completely misses the ball! Bat swings through air!",
     "Doesn't pick up the swing in time — plays no shot.",
     "Ball zips past, player frozen!",
+    "Shouldered arms but the ball was on the stumps — dangerous!",
+    "Left alone — but was that the right call? Very close!",
+    "Swings and misses completely — lucky the ball went wide!",
+    "Beaten for pace — the ball went through like a ghost!",
+    "Couldn't pick the variation — plays and misses!",
+    "Lets it go — umpire shakes his head but doesn't raise the finger!",
+    "Total confusion — doesn't know whether to play or leave!",
   ],
   wicket: [
     "Bowled through the gate! The stumps are cartwheeling!",
     "Top-edged, simple catch for the fielder — OUT!",
     "Caught on the boundary — miscued badly, OUT!",
     "Plumb in front! LBW, finger goes up!",
+    "GONE! Clean bowled, timber flying everywhere!",
+    "Edged to the keeper — big wicket, massive breakthrough!",
+    "Caught at mid-wicket — what a taken, OUT!",
+    "Run out! Didn't bother — what a direct hit!",
+    "Stumped! Dragged out of the crease — sharp keeping!",
+    "Caught behind — nicked it, the keeper takes it low!",
+    "Hit wicket! Oh no — backs into his stumps, OUT!",
+    "Caught in the deep — went for the big one too early!",
   ],
   dot: [
     "Safe, no run.",
     "Dot ball, good defensive prod.",
     "Blocked back down the pitch.",
+    "Keeps out a good one — no damage done.",
+    "Played with soft hands, rolls to the fielder.",
+    "Full of length, pushed to mid-on — fielded.",
+    "Good delivery, batsman can only keep it out.",
+    "Back foot defense — watchful cricket.",
+    "Excellent line and length — dot ball.",
+    "Batsman gets behind it — no scoring opportunity.",
+    "Defended solidly — building the pressure.",
+    "Well bowled! The batsman had no scoring option there.",
   ],
   one: [
     "Quick single through mid-wicket.",
     "Tucked away for one.",
     "Rotates the strike, one run.",
+    "Pushed to mid-on, takes a quick single.",
+    "Tucked behind square for a cheeky single — smart cricket!",
+    "Placed into the gap, easy single taken.",
+    "Calls the non-striker through — clever running!",
+    "Worked to fine leg, scrambles a single.",
+    "Drops it short of mid-off and scurries for one.",
+    "Pinched a single — keeps the scoreboard ticking!",
+    "Smart running between the wickets — one added.",
+    "Just a single — keeps the momentum going.",
   ],
-  two: ["Good running, two runs!", "Placed well, they scamper back for two!"],
+  two: [
+    "Good running, two runs!",
+    "Placed well, they scamper back for two!",
+    "Punched to the sweeper, comfortable two.",
+    "Wide of mid-wicket, they run two with ease!",
+    "Pushed into the gap at extra cover, turns it into two!",
+    "Works it to fine leg, sprints back for the second!",
+    "Drives to long-off, good running makes it two!",
+    "Hard hands, ball races away — they take two!",
+    "Clever placement, catches the gap, two runs scored.",
+    "Dabs it to third man and turns back — two!",
+  ],
   four: [
     "Races away to the boundary — FOUR!",
     "Splits the gap perfectly — FOUR!",
     "Timed to perfection, FOUR!",
+    "THUMPED through mid-wicket! That's four!",
+    "Smashes it through the covers — FOUR, no stopping that!",
+    "Crunches it through point — boundary!",
+    "Plays a gorgeous late cut — FOUR past backward point!",
+    "Hits straight as an arrow, reaches the rope — FOUR!",
+    "Whips it through mid-wicket, boundary all the way!",
+    "Gets forward and drives magnificently — FOUR!",
+    "Back of a length, pulls it hard through square leg — FOUR!",
+    "Stands and delivers — crashes it to the fence!",
+    "Flicks it off the pads and it races away — FOUR!",
+    "Plays a square drive, races past the fielder — FOUR!",
+    "Cracking shot through extra cover — FOUR!",
   ],
   six: [
     "Maximum! SIX over mid-on!",
     "Into the crowd! SIX!",
     "Absolutely launched it — SIX!",
+    "MASSIVE MAXIMUM! That's into the upper tier!",
+    "Helicoptered over long-on! SIX and the crowd erupts!",
+    "Cleared the rope with feet to spare — TREMENDOUS SIX!",
+    "Takes a knee and paddles it for SIX over fine leg!",
+    "Dances down, lifts it over the bowler's head — SIX!",
+    "Ramps it over the keeper — outrageous SIX!",
+    "Tonks it out of the ground — this one's in orbit! SIX!",
+    "Straight back over the bowler — SIX! What authority!",
+    "Heave over midwicket — gone! Crowd goes absolutely wild!",
+    "Gets under it and sends it MILES into the stands! SIX!",
+    "Picks the length early, unleashes — MONSTROUS SIX!",
+    "Smashed over cow corner — MAXIMUM! That's six!",
   ],
 };
+
+export const MILESTONE_COMMENTARY: Record<50 | 100 | 150, string[]> = {
+  50: [
+    "A brilliant fifty! The crowd stands to applaud this fine innings!",
+    "Half century up! Some remarkable batting on display here!",
+    "Fifty runs on the board — building a great platform!",
+  ],
+  100: [
+    "CENTURY! The batsman raises the bat to a thunderous ovation!",
+    "One hundred runs! A magnificent century — the crowd is on its feet!",
+    "A hundred up! This is some of the finest batting we've seen today!",
+  ],
+  150: [
+    "150 runs! This chase is on track — absolutely extraordinary batting!",
+    "A hundred and fifty! Incredible — can they go all the way?",
+    "150 on the board — the target is well within reach now!",
+  ],
+};
+
+export const powerPlayCommentary: string[] = [
+  "Powerplay is on! Only 2 fielders outside the ring — the gaps are there!",
+  "Powerplay restrictions in effect — excellent opportunity to put on runs!",
+  "Field restrictions make batting easier in the Powerplay — go for it!",
+  "These first 6 overs are gold — use the Powerplay to build the foundation!",
+  "Free-hitting territory! Fielders are restricted in the Powerplay circle!",
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -292,17 +457,20 @@ export function resolveShotOutcome(shot: ShotType): BallOutcome {
 }
 
 /**
- * New directional shot resolver.
+ * Directional shot resolver with difficulty awareness.
  * arrowKey: which arrow the player pressed, or null if they missed entirely.
  * ballDrift: -1 swings left, 0 straight, 1 swings right.
+ * difficulty: affects wicket/boundary weights.
  */
 export function resolveDirectionalShot(
   arrowKey: ArrowKey | null,
   ballDrift: BallDrift,
+  difficulty: Difficulty = "medium",
 ): BallOutcome {
   // Missed entirely — high wicket risk
   if (arrowKey === null) {
-    const outcome = pickWithWeights(DIRECTIONAL_MISS);
+    const baseWeights = applyDifficultyWeights(DIRECTIONAL_MISS, difficulty);
+    const outcome = pickWithWeights(baseWeights);
     const runsMap: Record<string, number> = {
       wicket: 0,
       dot: 0,
@@ -323,8 +491,9 @@ export function resolveDirectionalShot(
 
   // Loft shot — always aerial weights
   if (arrowKey === "up") {
-    const weights =
+    const baseWeights =
       ballDrift !== 0 ? DIRECTIONAL_LOFT_MISMATCH : DIRECTIONAL_LOFT;
+    const weights = applyDifficultyWeights(baseWeights, difficulty);
     const outcome = pickWithWeights(weights);
     const runsMap: Record<string, number> = {
       wicket: 0,
@@ -355,12 +524,13 @@ export function resolveDirectionalShot(
     (arrowKey === "left" && ballDrift === -1) ||
     (arrowKey === "right" && ballDrift === 1);
 
-  const weights = isPerfectMatch
+  const baseWeights = isPerfectMatch
     ? DIRECTIONAL_GOOD
     : isGoodMatch
       ? DIRECTIONAL_BASE
       : DIRECTIONAL_MISS;
 
+  const weights = applyDifficultyWeights(baseWeights, difficulty);
   const outcome = pickWithWeights(weights);
   const runsMap: Record<string, number> = {
     wicket: 0,

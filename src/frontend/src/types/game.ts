@@ -16,6 +16,8 @@ export type BallResult = {
 /** -1 = swings left, 0 = straight, 1 = swings right */
 export type BallDrift = -1 | 0 | 1;
 
+export type Difficulty = "easy" | "medium" | "hard";
+
 /**
  * bowling  = ball in flight, player can hit
  * waiting  = waiting for SPACE to bowl
@@ -37,6 +39,12 @@ export type GameState = {
   sixes: number;
   fours: number;
   highestScore: number;
+  partnershipRuns: number;
+  partnershipBalls: number;
+  milestoneShown: number;
+  overHistory: BallResult[][];
+  dots: number;
+  difficulty: Difficulty;
 };
 
 export type LeaderboardEntry = {

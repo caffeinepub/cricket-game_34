@@ -7,10 +7,16 @@ import type {
   ArrowKey,
   BallDrift,
   BallResult,
+  Difficulty,
   GamePhase,
   GameState,
 } from "../types/game";
-import { ballResultLabel, resolveDirectionalShot } from "../utils/cricket";
+import {
+  ballResultLabel,
+  powerPlayCommentary,
+  resolveDirectionalShot,
+} from "../utils/cricket";
+import FireworksCelebration from "./FireworksCelebration";
 import Scoreboard from "./Scoreboard";
 
 interface Config {
@@ -22,23 +28,32 @@ interface Props {
   config: Config;
   gameMode: GameMode;
   onBack: () => void;
+  difficulty: Difficulty;
 }
 
-const INITIAL_STATE: GameState = {
-  runs: 0,
-  wickets: 0,
-  ballsBowled: 0,
-  overBalls: [],
-  phase: "waiting",
-  lastOutcome: null,
-  commentary: "Welcome to Cricket Blast! Press SPACE to bowl the first ball.",
-  boundaries: 0,
-  sixes: 0,
-  fours: 0,
-  highestScore: 0,
-};
+function makeInitialState(config: Config, difficulty: Difficulty): GameState {
+  return {
+    runs: 0,
+    wickets: 0,
+    ballsBowled: 0,
+    overBalls: [],
+    phase: "waiting",
+    lastOutcome: null,
+    commentary: `Chase ${config.target} runs in ${config.balls / 6} overs. Press SPACE to bowl!`,
+    boundaries: 0,
+    sixes: 0,
+    fours: 0,
+    highestScore: 0,
+    partnershipRuns: 0,
+    partnershipBalls: 0,
+    milestoneShown: 0,
+    overHistory: [],
+    dots: 0,
+    difficulty,
+  };
+}
 
-// ─── Trail tracking ───────────────────────────────────────────────────────────
+// ─── Trail tracking ──────────────────────────────────────────────────────────────
 const TRAIL_LENGTH = 10;
 
 interface TrailPoint {
@@ -46,7 +61,7 @@ interface TrailPoint {
   y: number;
 }
 
-// ─── Pixel-Art Sprite Drawers ─────────────────────────────────────────────────
+// ─── Pixel-Art Sprite Drawers ────────────────────────────────────────────────────────────
 
 /**
  * Draw MS Dhoni-style batsman:
@@ -56,209 +71,229 @@ interface TrailPoint {
  * – Yellow CSK-style helmet, blue kit
  */
 function drawBatsman(ctx: CanvasRenderingContext2D, cx: number, baseY: number) {
-  // ── Wide stance legs / pads (feet spread ~36px apart)
-  // Left leg pad (back foot)
-  ctx.fillStyle = "#E8E8E8";
-  ctx.fillRect(cx - 22, baseY - 38, 11, 38);
-  // Right leg pad (front foot, slightly forward)
-  ctx.fillStyle = "#DEDEDE";
-  ctx.fillRect(cx + 11, baseY - 42, 11, 42);
-  // Pad straps
-  ctx.fillStyle = "#B0B0B0";
-  for (let i = 0; i < 3; i++) {
-    ctx.fillRect(cx - 22, baseY - 12 - i * 10, 11, 2);
-    ctx.fillRect(cx + 11, baseY - 14 - i * 10, 11, 2);
-  }
-  // Boots (wide, planted)
-  ctx.fillStyle = "#1A1A1A";
-  ctx.fillRect(cx - 26, baseY - 6, 14, 6); // back boot
-  ctx.fillRect(cx + 10, baseY - 6, 16, 6); // front boot (longer, forward)
-
-  // ── Body / jersey (blue — Dhoni CSK away / India blue)
-  ctx.fillStyle = "#003087";
-  ctx.fillRect(cx - 10, baseY - 74, 20, 34);
-  // Jersey highlights
-  ctx.fillStyle = "#0044B3";
-  ctx.fillRect(cx - 10, baseY - 74, 20, 4);
-  // Orange accent stripe
-  ctx.fillStyle = "#FF6B00";
-  ctx.fillRect(cx - 10, baseY - 68, 20, 3);
-  ctx.fillRect(cx - 10, baseY - 58, 20, 2);
-
-  // ── Gloves (Dhoni's thick wicket-keeping style gloves for batting)
-  // Right hand (lower grip, bat handle)
-  ctx.fillStyle = "#B84020";
-  ctx.fillRect(cx + 6, baseY - 64, 12, 12);
-  ctx.fillStyle = "#F0F0F0";
-  ctx.fillRect(cx + 6, baseY - 64, 12, 3);
-  // Left hand (top grip)
-  ctx.fillStyle = "#B84020";
-  ctx.fillRect(cx - 16, baseY - 58, 10, 10);
-  ctx.fillStyle = "#F0F0F0";
-  ctx.fillRect(cx - 16, baseY - 58, 10, 2);
-
-  // ── Bat held LOW and HORIZONTAL (Dhoni helicopter-ready position)
-  // Bat handle (horizontal/diagonal, bat held across body low)
-  ctx.fillStyle = "#5C3A1E";
-  // Handle — angled diagonally, low position
-  ctx.save();
-  ctx.translate(cx + 18, baseY - 55);
-  ctx.rotate(-0.35); // slight upward angle
-  ctx.fillRect(-3, -38, 6, 38);
-  // Grip wrap
-  ctx.fillStyle = "#222222";
-  for (let i = 0; i < 5; i++) {
-    ctx.fillRect(-3, -35 + i * 6, 6, 2);
-  }
-  ctx.restore();
-  // Bat blade — wide and slightly horizontal
-  ctx.save();
-  ctx.translate(cx + 16, baseY - 58);
-  ctx.rotate(-0.35);
-  ctx.fillStyle = "#A0722A";
-  ctx.fillRect(-4, -24, 20, 24);
-  ctx.fillStyle = "#C8A04A";
-  ctx.fillRect(-3, -23, 4, 22);
-  ctx.fillStyle = "#7A5018";
-  ctx.fillRect(13, -24, 3, 24);
-  ctx.restore();
-
-  // ── Right arm (bat arm, elbow out — Dhoni's wide elbow stance)
-  ctx.fillStyle = "#C8A080";
-  // Upper arm
-  ctx.fillRect(cx + 4, baseY - 72, 7, 16);
-  // Forearm angled outward
-  ctx.save();
-  ctx.translate(cx + 8, baseY - 58);
-  ctx.rotate(0.3);
-  ctx.fillRect(-3, -18, 7, 18);
-  ctx.restore();
-
-  // ── Left arm (elbow up, guard position)
-  ctx.fillStyle = "#C8A080";
-  ctx.fillRect(cx - 18, baseY - 70, 7, 14);
-  ctx.fillRect(cx - 20, baseY - 58, 7, 10);
-
-  // ── Neck
-  ctx.fillStyle = "#C8A080";
-  ctx.fillRect(cx - 3, baseY - 80, 6, 8);
-
-  // ── Helmet — MSD signature yellow helmet
-  ctx.fillStyle = "#D4A800"; // gold/yellow — Dhoni's iconic helmet color
-  ctx.beginPath();
-  ctx.arc(cx, baseY - 86, 14, Math.PI, 0);
-  ctx.fill();
-  ctx.fillRect(cx - 14, baseY - 86, 28, 7);
-  // Helmet shine
-  ctx.fillStyle = "#F5C800";
-  ctx.beginPath();
-  ctx.arc(cx - 4, baseY - 92, 6, Math.PI, 0);
-  ctx.fill();
-  // Helmet peak (brim)
-  ctx.fillStyle = "#A07800";
-  ctx.fillRect(cx - 17, baseY - 82, 34, 4);
-
-  // ── Face guard / visor
-  ctx.fillStyle = "#C0C0C0";
-  ctx.fillRect(cx - 11, baseY - 82, 22, 5);
-  // Face under visor
-  ctx.fillStyle = "#C8906A";
-  ctx.fillRect(cx - 8, baseY - 86, 16, 7);
-  // Eyes (intense focus — MSD stare)
-  ctx.fillStyle = "#1A1A1A";
-  ctx.fillRect(cx - 6, baseY - 84, 3, 2);
-  ctx.fillRect(cx + 3, baseY - 84, 3, 2);
-
-  // ── Grill bars over face
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
-  for (let i = 0; i < 5; i++) {
-    ctx.fillRect(cx - 10, baseY - 80 + i * 2, 20, 1);
-  }
-
-  // ── Dhoni's signature: small '7' number on jersey
-  ctx.fillStyle = "rgba(255,165,0,0.9)";
-  ctx.fillRect(cx - 2, baseY - 66, 4, 7);
-  ctx.fillStyle = "#003087";
-  ctx.fillRect(cx - 1, baseY - 66, 2, 2);
-  ctx.fillRect(cx + 1, baseY - 66, 1, 5);
-}
-
-/**
- * Draw a detailed pixel-art style bowler in delivery action pose.
- * Blue/red kit, arm raised high, lean-forward stance.
- */
-function drawBowler(ctx: CanvasRenderingContext2D, cx: number, baseY: number) {
-  // ── Legs (stride pose)
-  // Left leg (back)
-  ctx.fillStyle = "#1A237E";
-  ctx.fillRect(cx - 8, baseY - 30, 8, 30);
-  // Right leg (forward stride)
-  ctx.fillStyle = "#1A237E";
-  ctx.fillRect(cx + 2, baseY - 26, 8, 26);
-  // Boots
+  // ── BOOTS (wide planted stance, feet ~40px apart)
   ctx.fillStyle = "#111111";
-  ctx.fillRect(cx - 10, baseY - 6, 10, 6);
-  ctx.fillRect(cx + 2, baseY - 4, 10, 4);
+  ctx.fillRect(cx - 30, baseY - 7, 18, 7); // back boot (left)
+  ctx.fillRect(cx + 14, baseY - 7, 18, 7); // front boot (right, stepped forward)
 
-  // ── Body / jersey
-  ctx.fillStyle = "#283593";
-  ctx.fillRect(cx - 9, baseY - 60, 18, 30);
-  // Red accent across chest
-  ctx.fillStyle = "#C62828";
-  ctx.fillRect(cx - 9, baseY - 56, 18, 5);
-  ctx.fillRect(cx - 9, baseY - 44, 18, 3);
-  // Number on back (decorative)
+  // ── LEG PADS (white, tall, realistic proportions)
+  // Back leg pad
+  ctx.fillStyle = "#F0F0F0";
+  ctx.fillRect(cx - 28, baseY - 52, 14, 46);
+  // Front leg pad (slightly taller, forward)
+  ctx.fillStyle = "#E8E8E8";
+  ctx.fillRect(cx + 15, baseY - 58, 14, 52);
+  // Pad straps (dark)
+  ctx.fillStyle = "#999999";
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(cx - 28, baseY - 16 - i * 14, 14, 2);
+    ctx.fillRect(cx + 15, baseY - 18 - i * 14, 14, 2);
+  }
+  // Knee rolls on front pad
+  ctx.fillStyle = "#D8D8D8";
+  ctx.fillRect(cx + 15, baseY - 52, 14, 8);
+
+  // ── THIGH PAD (right leg, inner)
+  ctx.fillStyle = "#D0D0D0";
+  ctx.fillRect(cx + 10, baseY - 72, 10, 18);
+
+  // ── BODY / JERSEY — India Blue #003087 with orange/white trim
+  // Torso (slightly hunched forward = leaning left toward stumps)
+  ctx.fillStyle = "#003087";
+  ctx.fillRect(cx - 14, baseY - 98, 24, 46);
+  // Collar area
+  ctx.fillStyle = "#FF8800";
+  ctx.fillRect(cx - 14, baseY - 98, 24, 5);
+  ctx.fillRect(cx - 14, baseY - 86, 24, 3);
+  // Jersey number 7 on chest
+  ctx.fillStyle = "#FFD700";
+  ctx.font = "bold 8px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("7", cx - 2, baseY - 72);
+  ctx.textAlign = "left";
+
+  // ── GLOVES — thick batting gloves
+  // Bottom hand (right, lower on handle)
+  ctx.fillStyle = "#C03018";
+  ctx.fillRect(cx + 8, baseY - 88, 14, 14);
   ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(cx - 3, baseY - 53, 6, 8);
+  ctx.fillRect(cx + 8, baseY - 88, 14, 3);
+  ctx.fillStyle = "#E04828";
+  ctx.fillRect(cx + 10, baseY - 85, 10, 2);
+  // Top hand (left, upper grip)
+  ctx.fillStyle = "#C03018";
+  ctx.fillRect(cx - 20, baseY - 80, 12, 12);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(cx - 20, baseY - 80, 12, 3);
 
-  // ── Neck
-  ctx.fillStyle = "#C8A080";
-  ctx.fillRect(cx - 3, baseY - 66, 6, 8);
-
-  // ── Bowling arm (raised high and forward)
-  ctx.fillStyle = "#C8A080";
-  // Shoulder → upper arm up
-  ctx.fillRect(cx + 4, baseY - 62, 6, 18);
-  // Forearm extended upward
+  // ── BAT — held vertically, raised back, ready to strike (guard position)
+  // Handle (vertical, raised slightly behind right shoulder)
   ctx.save();
-  ctx.translate(cx + 7, baseY - 58);
-  ctx.rotate(-0.5);
-  ctx.fillRect(-3, -28, 6, 28);
-  ctx.restore();
-  // Hand/fingers
-  ctx.fillStyle = "#B8906A";
-  ctx.save();
-  ctx.translate(cx + 7, baseY - 58);
-  ctx.rotate(-0.5);
-  ctx.fillRect(-4, -36, 8, 9);
-  ctx.restore();
-
-  // ── Non-bowling arm (balance)
-  ctx.fillStyle = "#C8A080";
-  ctx.fillRect(cx - 14, baseY - 58, 6, 16);
-  ctx.fillRect(cx - 18, baseY - 50, 6, 12);
-
-  // ── Head (leaning forward)
-  ctx.fillStyle = "#C8A080";
-  ctx.beginPath();
-  ctx.ellipse(cx, baseY - 72, 10, 11, -0.2, 0, Math.PI * 2);
-  ctx.fill();
-  // Hair / cap
-  ctx.fillStyle = "#1A237E";
-  ctx.beginPath();
-  ctx.ellipse(cx, baseY - 76, 10, 7, -0.2, Math.PI, 0);
-  ctx.fill();
-  // Cap peak
-  ctx.fillRect(cx - 2, baseY - 72, 14, 3);
-  // Eyes
+  ctx.translate(cx + 20, baseY - 88);
+  ctx.rotate(0.18); // slight backward lean
+  ctx.fillStyle = "#5C3A1E";
+  ctx.fillRect(-4, -46, 8, 46);
+  // Grip tape wrapping
   ctx.fillStyle = "#1A1A1A";
-  ctx.fillRect(cx - 5, baseY - 71, 3, 2);
-  ctx.fillRect(cx + 2, baseY - 71, 3, 2);
-  // Mouth (determined expression)
-  ctx.fillRect(cx - 3, baseY - 66, 6, 2);
+  for (let i = 0; i < 6; i++) {
+    ctx.fillRect(-4, -43 + i * 7, 8, 3);
+  }
+  ctx.restore();
+  // Bat blade (wide, facing bowler)
+  ctx.save();
+  ctx.translate(cx + 18, baseY - 46);
+  ctx.rotate(0.18);
+  ctx.fillStyle = "#C8922A";
+  ctx.fillRect(-5, 0, 26, 58);
+  // Blade face highlight
+  ctx.fillStyle = "#E0AA40";
+  ctx.fillRect(-4, 2, 6, 54);
+  // Blade spine (right edge, 3D effect)
+  ctx.fillStyle = "#8A6018";
+  ctx.fillRect(18, 0, 3, 58);
+  // Sweet spot marking
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.fillRect(-4, 18, 26, 22);
+  ctx.restore();
+
+  // ── RIGHT ARM (bat arm — elbow raised, classic high-elbow guard)
+  ctx.fillStyle = "#C89060";
+  // Upper arm (raised, going up toward handle)
+  ctx.fillRect(cx + 8, baseY - 100, 8, 22);
+  // Forearm (angled outward toward bat)
+  ctx.save();
+  ctx.translate(cx + 14, baseY - 82);
+  ctx.rotate(0.4);
+  ctx.fillRect(-4, -20, 8, 20);
+  ctx.restore();
+
+  // ── LEFT ARM (front arm — bent, elbow pointing at bowler = classic batting stance)
+  ctx.fillStyle = "#C89060";
+  ctx.fillRect(cx - 18, baseY - 98, 8, 16);
+  ctx.save();
+  ctx.translate(cx - 14, baseY - 84);
+  ctx.rotate(-0.55);
+  ctx.fillRect(-4, -20, 8, 20);
+  ctx.restore();
+
+  // ── NECK
+  ctx.fillStyle = "#C89060";
+  ctx.fillRect(cx - 4, baseY - 104, 7, 8);
+
+  // ── HEAD — facing side-on toward bowler (correct batting stance)
+  ctx.fillStyle = "#C89060";
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY - 114, 10, 12, -0.15, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── HELMET — Dhoni's iconic yellow/gold CSK helmet
+  ctx.fillStyle = "#D4A000";
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY - 118, 13, 10, -0.1, Math.PI, 0);
+  ctx.fill();
+  ctx.fillRect(cx - 13, baseY - 120, 27, 7);
+  // Helmet shine
+  ctx.fillStyle = "#F5C500";
+  ctx.beginPath();
+  ctx.ellipse(cx - 4, baseY - 124, 6, 4, -0.1, Math.PI, 0);
+  ctx.fill();
+  // Peak (brim)
+  ctx.fillStyle = "#A07800";
+  ctx.fillRect(cx - 16, baseY - 114, 35, 4);
+
+  // ── FACE GUARD / GRILL
+  ctx.fillStyle = "#AAAAAA";
+  ctx.fillRect(cx - 12, baseY - 114, 24, 5);
+  // Face skin visible behind grill
+  ctx.fillStyle = "#C89060";
+  ctx.fillRect(cx - 9, baseY - 118, 18, 8);
+  // Eyes (side-on, focused stare toward bowler)
+  ctx.fillStyle = "#1A1A1A";
+  ctx.fillRect(cx + 2, baseY - 116, 4, 2);
+  // Grill vertical bars
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(cx - 10 + i * 5, baseY - 113, 2, 4);
+  }
+  // Grill horizontal bars
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(cx - 12, baseY - 112 + i * 2, 24, 1);
+  }
 }
 
-// ─── Scene Rendering ──────────────────────────────────────────────────────────
+function drawBowler(ctx: CanvasRenderingContext2D, cx: number, baseY: number) {
+  // Legs
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(cx - 6, baseY - 34, 6, 34);
+  ctx.fillRect(cx + 1, baseY - 38, 6, 38);
+  // Boots
+  ctx.fillStyle = "#1A1A1A";
+  ctx.fillRect(cx - 8, baseY - 5, 9, 5);
+  ctx.fillRect(cx, baseY - 5, 9, 5);
+  // Body
+  ctx.fillStyle = "#22863a";
+  ctx.fillRect(cx - 8, baseY - 66, 18, 32);
+  ctx.fillStyle = "#176030";
+  ctx.fillRect(cx - 8, baseY - 66, 18, 4);
+  // Arms
+  ctx.fillStyle = "#22863a";
+  ctx.fillRect(cx - 14, baseY - 63, 6, 18);
+  ctx.save();
+  ctx.translate(cx + 10, baseY - 55);
+  ctx.rotate(-1.1);
+  ctx.fillRect(-3, -18, 6, 22);
+  ctx.restore();
+  // Head
+  ctx.fillStyle = "#D4A06A";
+  ctx.beginPath();
+  ctx.ellipse(cx + 1, baseY - 78, 9, 11, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Helmet / cap
+  ctx.fillStyle = "#22863a";
+  ctx.beginPath();
+  ctx.ellipse(cx + 1, baseY - 81, 11, 8, 0, Math.PI, 2 * Math.PI);
+  ctx.fill();
+  ctx.fillRect(cx - 11, baseY - 83, 24, 4);
+  // Ball in hand
+  ctx.beginPath();
+  ctx.arc(cx + 14, baseY - 52, 6, 0, Math.PI * 2);
+  const bg = ctx.createRadialGradient(
+    cx + 12,
+    baseY - 54,
+    1,
+    cx + 14,
+    baseY - 52,
+    6,
+  );
+  bg.addColorStop(0, "#ff8080");
+  bg.addColorStop(0.4, "#cc2020");
+  bg.addColorStop(1, "#7a0000");
+  ctx.fillStyle = bg;
+  ctx.fill();
+}
+
+/** Simple pixel-art fielder at boundary */
+function drawFielder(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const s = 0.55;
+  // Legs
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(x - 5 * s, y - 22 * s, 5 * s, 22 * s);
+  ctx.fillRect(x + 1 * s, y - 22 * s, 5 * s, 22 * s);
+  // Body
+  ctx.fillStyle = "#B71C1C";
+  ctx.fillRect(x - 7 * s, y - 44 * s, 15 * s, 22 * s);
+  // Head
+  ctx.fillStyle = "#D4A06A";
+  ctx.beginPath();
+  ctx.ellipse(x, y - 51 * s, 7 * s, 8 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Cap
+  ctx.fillStyle = "#B71C1C";
+  ctx.beginPath();
+  ctx.ellipse(x, y - 54 * s, 8 * s, 5 * s, 0, Math.PI, 2 * Math.PI);
+  ctx.fill();
+}
 
 function drawScene(
   ctx: CanvasRenderingContext2D,
@@ -269,7 +304,7 @@ function drawScene(
   ballVisible: boolean,
   trail: TrailPoint[],
 ) {
-  // ── Sky gradient
+  // ── Sky
   const sky = ctx.createLinearGradient(0, 0, 0, height * 0.55);
   sky.addColorStop(0, "#1a3a5c");
   sky.addColorStop(0.5, "#2d6a8a");
@@ -277,7 +312,7 @@ function drawScene(
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, width, height * 0.55);
 
-  // ── Stars (small dots near top)
+  // ── Stars
   ctx.fillStyle = "rgba(255,255,255,0.6)";
   const stars = [
     [0.08, 0.03],
@@ -293,7 +328,7 @@ function drawScene(
     ctx.fillRect(sx * width, sy * height, 2, 2);
   }
 
-  // ── Floodlights (tall poles)
+  // ── Floodlights
   const poleColor = "#888888";
   const lightColor = "rgba(255,240,180,0.9)";
   const poles = [width * 0.08, width * 0.92];
@@ -301,14 +336,12 @@ function drawScene(
     ctx.fillStyle = poleColor;
     ctx.fillRect(px - 4, height * 0.1, 8, height * 0.38);
     ctx.fillRect(px - 16, height * 0.1, 32, 6);
-    // Lights
     ctx.fillStyle = lightColor;
     for (let li = 0; li < 5; li++) {
       ctx.beginPath();
       ctx.arc(px - 12 + li * 6, height * 0.1 + 3, 4, 0, Math.PI * 2);
       ctx.fill();
     }
-    // Glow
     const glow = ctx.createRadialGradient(
       px,
       height * 0.1,
@@ -325,7 +358,7 @@ function drawScene(
     ctx.fill();
   }
 
-  // ── Stadium seating (tiered arcs)
+  // ── Stadium seating
   const seatColors = ["#1a2a3a", "#16213a", "#0d1b2a"];
   for (let tier = 0; tier < 3; tier++) {
     ctx.fillStyle = seatColors[tier];
@@ -342,7 +375,7 @@ function drawScene(
     ctx.fill();
   }
 
-  // ── Crowd rows (colorful pixel dots)
+  // ── Crowd rows
   const crowdColors = [
     "#E53935",
     "#1E88E5",
@@ -379,7 +412,7 @@ function drawScene(
   ctx.fillStyle = groundGrad;
   ctx.fillRect(0, height * 0.44, width, height * 0.56);
 
-  // ── Outfield mowing pattern (alternating light/dark strips)
+  // ── Outfield mowing pattern
   for (let strip = 0; strip < 8; strip++) {
     if (strip % 2 === 0) {
       ctx.fillStyle = "rgba(255,255,255,0.03)";
@@ -472,6 +505,12 @@ function drawScene(
   const bowlStumpY = pitchY + pitchH * 0.12;
   drawStumps(ctx, width / 2, bowlStumpY, 18);
 
+  // ── Fielders at boundary positions
+  drawFielder(ctx, width * 0.15, height * 0.6);
+  drawFielder(ctx, width * 0.35, height * 0.55);
+  drawFielder(ctx, width * 0.65, height * 0.55);
+  drawFielder(ctx, width * 0.85, height * 0.6);
+
   // ── Sprites
   drawBatsman(ctx, width / 2 - 28, stumpBaseY);
   if (!ballVisible) {
@@ -556,9 +595,14 @@ function drawStumps(
   ctx.stroke();
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Component ─────────────────────────────────────────────────────────────
 
-export default function CricketGame({ config, gameMode, onBack }: Props) {
+export default function CricketGame({
+  config,
+  gameMode,
+  onBack,
+  difficulty,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number | null>(null);
   const ballStartTime = useRef(0);
@@ -574,11 +618,16 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
 
   // IPL logo flash state after a SIX
   const [showIplLogo, setShowIplLogo] = useState(false);
+  // Milestone banner state
+  const [showMilestone, setShowMilestone] = useState<null | 50 | 100 | 150>(
+    null,
+  );
+  // Dust flash for dot balls
+  const [showDust, setShowDust] = useState(false);
 
-  const [gameState, setGameState] = useState<GameState>({
-    ...INITIAL_STATE,
-    commentary: `Chase ${config.target} runs in ${config.balls / 6} overs. Press SPACE to bowl!`,
-  });
+  const [gameState, setGameState] = useState<GameState>(() =>
+    makeInitialState(config, difficulty),
+  );
 
   // ── Canvas draw
   const drawCanvas = useCallback(() => {
@@ -618,7 +667,7 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
     return () => window.removeEventListener("resize", handleResize);
   }, [drawCanvas]);
 
-  // ── Ball animation
+  // ── Ball animation with parabolic arc
   const animateBall = useCallback(
     (onComplete: (pressedKey: ArrowKey | null) => void) => {
       const canvas = canvasRef.current;
@@ -641,7 +690,9 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
         const elapsed = now - ballStartTime.current;
         const t = Math.min(elapsed / BALL_DURATION, 1);
         const ease = t * t * (3 - 2 * t);
-        const y = startY + (endY - startY) * ease;
+        // Parabolic arc: add vertical peak in the middle
+        const arcY = -Math.sin(Math.PI * t) * (canvas.height * 0.08);
+        const y = startY + (endY - startY) * ease + arcY;
         const x = startX + totalDrift * ease;
 
         trailRef.current = [
@@ -672,12 +723,22 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
   // ── Shot outcome after animation
   const finalizeBall = useCallback(
     (pressedKey: ArrowKey | null) => {
-      const outcome = resolveDirectionalShot(pressedKey, driftRef.current);
+      const outcome = resolveDirectionalShot(
+        pressedKey,
+        driftRef.current,
+        difficulty,
+      );
 
       // Show IPL logo flash on a SIX
       if (outcome.runs === 6) {
         setShowIplLogo(true);
         setTimeout(() => setShowIplLogo(false), 2400);
+      }
+
+      // Dot ball dust flash
+      if (outcome.runs === 0 && !outcome.isWicket) {
+        setShowDust(true);
+        setTimeout(() => setShowDust(false), 300);
       }
 
       setGameState((prev) => {
@@ -688,15 +749,29 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
           prev.boundaries + (outcome.runs === 4 || outcome.runs === 6 ? 1 : 0);
         const newFours = prev.fours + (outcome.runs === 4 ? 1 : 0);
         const newSixes = prev.sixes + (outcome.runs === 6 ? 1 : 0);
+        const newDots =
+          prev.dots + (outcome.runs === 0 && !outcome.isWicket ? 1 : 0);
+
+        // Partnership tracking
+        const newPartnershipRuns = outcome.isWicket
+          ? 0
+          : prev.partnershipRuns + outcome.runs;
+        const newPartnershipBalls = outcome.isWicket
+          ? 0
+          : prev.partnershipBalls + 1;
 
         const ballResult: BallResult = {
           runs: outcome.runs,
           isWicket: outcome.isWicket,
         };
 
+        // Over history: save completed over
         const newOverBalls = [...prev.overBalls];
-        if (newOverBalls.length >= 6)
+        let newOverHistory = [...prev.overHistory];
+        if (newOverBalls.length >= 6) {
+          newOverHistory = [...newOverHistory, [...newOverBalls]];
           newOverBalls.splice(0, newOverBalls.length);
+        }
         newOverBalls.push(ballResult);
 
         // Check game over conditions
@@ -709,18 +784,45 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
           phase = "over";
         }
 
+        // Milestone check
+        let newMilestoneShown = prev.milestoneShown;
+        if (newRuns >= 150 && prev.milestoneShown < 150) {
+          newMilestoneShown = 150;
+          setTimeout(() => {
+            setShowMilestone(150);
+            setTimeout(() => setShowMilestone(null), 3500);
+          }, 100);
+        } else if (newRuns >= 100 && prev.milestoneShown < 100) {
+          newMilestoneShown = 100;
+          setTimeout(() => {
+            setShowMilestone(100);
+            setTimeout(() => setShowMilestone(null), 4500);
+          }, 100);
+        } else if (newRuns >= 50 && prev.milestoneShown < 50) {
+          newMilestoneShown = 50;
+          setTimeout(() => {
+            setShowMilestone(50);
+            setTimeout(() => setShowMilestone(null), 3500);
+          }, 100);
+        }
+
         return {
           ...prev,
           runs: newRuns,
           wickets: newWickets,
           ballsBowled: newBalls,
           overBalls: newOverBalls,
+          overHistory: newOverHistory,
           phase,
           lastOutcome: outcome,
           commentary: outcome.commentary,
           boundaries: newBoundaries,
           fours: newFours,
           sixes: newSixes,
+          dots: newDots,
+          partnershipRuns: newPartnershipRuns,
+          partnershipBalls: newPartnershipBalls,
+          milestoneShown: newMilestoneShown,
         };
       });
 
@@ -734,7 +836,7 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
         });
       }, 1800);
     },
-    [config.target, config.balls],
+    [config.target, config.balls, difficulty],
   );
 
   // ── Bowl trigger
@@ -747,20 +849,30 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
       driftOptions[Math.floor(Math.random() * driftOptions.length)];
     arrowKeyRef.current = null;
 
-    setGameState((prev) => ({
-      ...prev,
-      phase: "bowling" as GamePhase,
-      lastOutcome: null,
-      commentary:
+    // Difficulty-aware bowling commentary
+    let bowlCommentary: string;
+    if (difficulty === "easy") {
+      bowlCommentary = "Nice easy delivery! Pick your shot.";
+    } else if (difficulty === "hard") {
+      bowlCommentary = "Express pace! Lightning quick delivery!";
+    } else {
+      bowlCommentary =
         driftRef.current === -1
           ? "In-swinger! Watch the ball movement!"
           : driftRef.current === 1
             ? "Out-swinger! Ball moving away!"
-            : "Straight delivery! Time your shot!",
+            : "Straight delivery! Time your shot!";
+    }
+
+    setGameState((prev) => ({
+      ...prev,
+      phase: "bowling" as GamePhase,
+      lastOutcome: null,
+      commentary: bowlCommentary,
     }));
 
     animateBall(finalizeBall);
-  }, [animateBall, finalizeBall]);
+  }, [animateBall, finalizeBall, difficulty]);
 
   // ── Arrow key shot helper
   const registerArrowKey = useCallback((key: ArrowKey) => {
@@ -810,10 +922,9 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
     trailRef.current = [];
     arrowKeyRef.current = null;
     setShowIplLogo(false);
-    setGameState({
-      ...INITIAL_STATE,
-      commentary: `New game! Chase ${config.target} runs in ${config.balls / 6} overs. Press SPACE to bowl!`,
-    });
+    setShowMilestone(null);
+    setShowDust(false);
+    setGameState(makeInitialState(config, difficulty));
     const canvas = canvasRef.current;
     if (canvas) {
       canvas.width = canvas.offsetWidth;
@@ -834,6 +945,12 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
           ? "↘ Out-swing"
           : "↓ Straight"
       : null;
+
+  // PowerPlay check (T20 mode, first 6 overs = 36 balls)
+  const isPowerPlay = gameMode === "t20" && gameState.ballsBowled < 36;
+
+  // Over history display (last 2 completed overs)
+  const recentOvers = gameState.overHistory.slice(-2);
 
   return (
     <div
@@ -886,8 +1003,72 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
             data-ocid="game.canvas_target"
           />
 
+          {/* Dot ball dust overlay */}
+          <AnimatePresence>
+            {showDust && (
+              <motion.div
+                key="dust"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 pointer-events-none z-10"
+                style={{ background: "rgba(139,90,43,0.2)" }}
+              />
+            )}
+          </AnimatePresence>
+
           {/* Scoreboard HUD */}
-          <Scoreboard state={gameState} target={config.target} />
+          <Scoreboard
+            state={gameState}
+            target={config.target}
+            partnership={{
+              runs: gameState.partnershipRuns,
+              balls: gameState.partnershipBalls,
+            }}
+            isPowerPlay={isPowerPlay}
+            difficulty={difficulty}
+          />
+
+          {/* Over history display */}
+          {recentOvers.length > 0 && (
+            <div className="absolute top-4 right-4 z-20 flex flex-col gap-1">
+              {recentOvers.map((over, idx) => {
+                const overNum =
+                  gameState.overHistory.length - recentOvers.length + idx + 1;
+                return (
+                  <div
+                    key={overNum}
+                    className="text-xs px-2 py-1 rounded-lg"
+                    style={{
+                      background: "rgba(0,0,0,0.6)",
+                      color: "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    <span style={{ color: "rgba(255,255,255,0.35)" }}>
+                      Ov {overNum}:
+                    </span>{" "}
+                    {over.map((b, ballIdx) => (
+                      <span
+                        key={`ov${overNum}-b${ballIdx}-${b.runs}-${b.isWicket}`}
+                        className="mr-1 font-bold"
+                        style={{
+                          color: b.isWicket
+                            ? "#f87171"
+                            : b.runs === 6
+                              ? "#fbbf24"
+                              : b.runs === 4
+                                ? "#34d399"
+                                : "rgba(255,255,255,0.65)",
+                        }}
+                      >
+                        {ballResultLabel(b.runs, b.isWicket)}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* TATA IPL Logo flash on SIX */}
           <AnimatePresence>
@@ -925,6 +1106,16 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
                   </motion.p>
                 </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Milestone celebration (fireworks + banner) */}
+          <AnimatePresence>
+            {showMilestone && (
+              <FireworksCelebration
+                key={`milestone-${showMilestone}`}
+                milestone={showMilestone}
+              />
             )}
           </AnimatePresence>
 
@@ -1035,7 +1226,7 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
                       { label: "Fours", value: gameState.fours },
                       { label: "Sixes", value: gameState.sixes },
                       { label: "Wickets", value: gameState.wickets },
-                      { label: "Boundaries", value: gameState.boundaries },
+                      { label: "Dots", value: gameState.dots },
                       {
                         label: "Run Rate",
                         value:
@@ -1121,14 +1312,14 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
                       !ball
                         ? "border-white/20 text-white/20"
                         : ball.isWicket
-                          ? "bg-red-700 border-red-500 text-white"
+                          ? "bg-red-600 border-red-500 text-white"
                           : ball.runs === 6
-                            ? "bg-blue-600 border-blue-400 text-white"
+                            ? "bg-blue-600 border-blue-500 text-white"
                             : ball.runs === 4
-                              ? "bg-green-600 border-green-400 text-white"
+                              ? "bg-green-600 border-green-500 text-white"
                               : ball.runs === 0
-                                ? "bg-gray-700 border-gray-500 text-white/60"
-                                : "bg-gray-600 border-gray-400 text-white"
+                                ? "bg-gray-700 border-gray-600 text-white/50"
+                                : "bg-gray-600 border-gray-500 text-white"
                     }`}
                   >
                     {label}
@@ -1138,175 +1329,186 @@ export default function CricketGame({ config, gameMode, onBack }: Props) {
             )}
           </div>
 
-          {/* Controls — keyboard on desktop, touch buttons on mobile */}
-          <div
-            className="rounded-2xl px-4 py-3"
-            style={{
-              background: "rgba(10, 30, 60, 0.92)",
-              border: "1px solid rgba(80,140,255,0.2)",
-            }}
-          >
-            {/* Touch buttons for mobile */}
-            <div className="flex items-center justify-center gap-3 mb-3 md:hidden">
-              {gameState.phase === "waiting" && !isGameOver ? (
-                <motion.button
+          {/* Mobile touch controls */}
+          <div className="md:hidden flex flex-col items-center gap-3">
+            {gameState.phase === "waiting" && !isGameOver ? (
+              <motion.button
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.4 }}
+                onPointerDown={triggerBowl}
+                className="px-8 py-4 rounded-2xl text-white font-black text-lg shadow-lg"
+                style={{
+                  background: "linear-gradient(135deg, #16a34a, #15803d)",
+                  border: "2px solid rgba(255,255,255,0.3)",
+                  minWidth: 140,
+                  minHeight: 56,
+                }}
+                data-ocid="game.primary_button"
+              >
+                🏏 BOWL
+              </motion.button>
+            ) : gameState.phase === "bowling" ? (
+              <div className="flex items-center gap-3">
+                {[
+                  {
+                    key: "left" as ArrowKey,
+                    label: "← Leg",
+                    color: "#16a34a",
+                  },
+                  {
+                    key: "up" as ArrowKey,
+                    label: "↑ Loft",
+                    color: "#d97706",
+                  },
+                  {
+                    key: "right" as ArrowKey,
+                    label: "→ Off",
+                    color: "#2563eb",
+                  },
+                ].map((btn) => (
+                  <motion.button
+                    key={btn.key}
+                    animate={{ scale: [1, 1.08, 1] }}
+                    transition={{
+                      repeat: Number.POSITIVE_INFINITY,
+                      duration: 0.8,
+                    }}
+                    onPointerDown={() => registerArrowKey(btn.key)}
+                    className="px-4 py-3 rounded-xl text-white font-bold text-base"
+                    style={{
+                      background: btn.color,
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      minWidth: 80,
+                      minHeight: 56,
+                    }}
+                  >
+                    {btn.label}
+                  </motion.button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Keyboard guide for desktop */}
+          <AnimatePresence mode="wait">
+            {gameState.phase === "waiting" && !isGameOver ? (
+              <motion.div
+                key="space-prompt"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="hidden md:flex items-center justify-center gap-3"
+              >
+                <motion.div
                   animate={{ scale: [1, 1.06, 1] }}
                   transition={{
                     repeat: Number.POSITIVE_INFINITY,
                     duration: 1.4,
                   }}
-                  onPointerDown={() => triggerBowl()}
-                  className="px-6 py-3 rounded-xl text-white font-bold text-sm"
-                  style={{
-                    background: "linear-gradient(135deg, #0044b3, #0066ff)",
-                    border: "2px solid rgba(100,180,255,0.5)",
-                  }}
+                  className="flex items-center gap-2"
                 >
-                  🏏 BOWL (Tap)
-                </motion.button>
-              ) : gameState.phase === "bowling" ? (
-                <div className="flex gap-3">
-                  {[
-                    {
-                      key: "left" as ArrowKey,
-                      label: "← Leg",
-                      color: "#16a34a",
-                    },
-                    {
-                      key: "up" as ArrowKey,
-                      label: "↑ Loft",
-                      color: "#ca8a04",
-                    },
-                    {
-                      key: "right" as ArrowKey,
-                      label: "→ Off",
-                      color: "#2563eb",
-                    },
-                  ].map((btn) => (
-                    <motion.button
-                      key={btn.key}
-                      animate={{ scale: [1, 1.08, 1] }}
-                      transition={{
-                        repeat: Number.POSITIVE_INFINITY,
-                        duration: 0.8,
-                      }}
-                      onPointerDown={() => registerArrowKey(btn.key)}
-                      className="px-4 py-3 rounded-xl text-white font-bold text-sm"
-                      style={{
-                        background: btn.color,
-                        border: "2px solid rgba(255,255,255,0.3)",
-                      }}
-                    >
-                      {btn.label}
-                    </motion.button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {/* Keyboard guide for desktop */}
-            <AnimatePresence mode="wait">
-              {gameState.phase === "waiting" && !isGameOver ? (
-                <motion.div
-                  key="space-prompt"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="hidden md:flex items-center justify-center gap-3"
-                >
-                  <motion.div
-                    animate={{ scale: [1, 1.06, 1] }}
-                    transition={{
-                      repeat: Number.POSITIVE_INFINITY,
-                      duration: 1.4,
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <kbd className="inline-flex items-center justify-center px-3 py-1 rounded-lg text-xs font-bold text-white bg-white/15 border border-white/30 shadow-inner">
-                      SPACE
-                    </kbd>
-                    <span className="text-white/80 text-sm font-semibold">
-                      = Bowl
-                    </span>
-                  </motion.div>
-                  <span className="text-white/30 text-xs">|</span>
-                  <span className="text-white/50 text-xs">
-                    Then ← Leg &nbsp;|&nbsp; → Off &nbsp;|&nbsp; ↑ Loft
+                  <kbd className="inline-flex items-center justify-center px-3 py-1 rounded-lg text-xs font-bold text-white bg-white/15 border border-white/30 shadow-inner">
+                    SPACE
+                  </kbd>
+                  <span className="text-white/80 text-sm font-semibold">
+                    = Bowl
                   </span>
                 </motion.div>
-              ) : gameState.phase === "bowling" ? (
-                <motion.div
-                  key="hit-prompt"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="hidden md:flex items-center justify-center gap-3"
-                >
-                  {[
-                    { key: "←", label: "Leg Side", color: "text-green-400" },
-                    { key: "→", label: "Off Side", color: "text-blue-400" },
-                    { key: "↑", label: "Loft", color: "text-yellow-400" },
-                  ].map((k) => (
-                    <motion.div
-                      key={k.key}
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{
-                        repeat: Number.POSITIVE_INFINITY,
-                        duration: 0.8,
-                      }}
-                      className="flex items-center gap-1.5"
-                    >
-                      <kbd className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold text-white bg-white/20 border border-white/40 shadow-inner">
-                        {k.key}
-                      </kbd>
-                      <span className={`text-xs font-medium ${k.color}`}>
-                        {k.label}
-                      </span>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="idle-controls"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="hidden md:flex items-center justify-center gap-4"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/8 border border-white/20">
-                      SPACE
+                <span className="text-white/30 text-xs">|</span>
+                <span className="text-white/50 text-xs">
+                  Then ← Leg &nbsp;|&nbsp; → Off &nbsp;|&nbsp; ↑ Loft
+                </span>
+              </motion.div>
+            ) : gameState.phase === "bowling" ? (
+              <motion.div
+                key="hit-prompt"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="hidden md:flex items-center justify-center gap-3"
+              >
+                {[
+                  { key: "←", label: "Leg Side", color: "text-green-400" },
+                  { key: "→", label: "Off Side", color: "text-blue-400" },
+                  { key: "↑", label: "Loft", color: "text-yellow-400" },
+                ].map((k) => (
+                  <motion.div
+                    key={k.key}
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{
+                      repeat: Number.POSITIVE_INFINITY,
+                      duration: 0.8,
+                    }}
+                    className="flex items-center gap-1.5"
+                  >
+                    <kbd className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold text-white bg-white/20 border border-white/40 shadow-inner">
+                      {k.key}
                     </kbd>
-                    <span className="text-white/40 text-xs">Bowl</span>
-                  </div>
-                  <span className="text-white/20">|</span>
-                  <div className="flex items-center gap-1.5">
-                    <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/8 border border-white/20">
-                      ←
-                    </kbd>
-                    <span className="text-white/40 text-xs">Leg</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/8 border border-white/20">
-                      →
-                    </kbd>
-                    <span className="text-white/40 text-xs">Off</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/8 border border-white/20">
-                      ↑
-                    </kbd>
-                    <span className="text-white/40 text-xs">Loft</span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <span className={`text-xs font-medium ${k.color}`}>
+                      {k.label}
+                    </span>
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="idle-controls"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="hidden md:flex items-center justify-center gap-4"
+              >
+                <div className="flex items-center gap-1.5">
+                  <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/10 border border-white/20">
+                    SPACE
+                  </kbd>
+                  <span className="text-white/40 text-xs">Bowl</span>
+                </div>
+                <span className="text-white/20">|</span>
+                <div className="flex items-center gap-1.5">
+                  <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/10 border border-white/20">
+                    ←
+                  </kbd>
+                  <span className="text-white/40 text-xs">Leg</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/10 border border-white/20">
+                    →
+                  </kbd>
+                  <span className="text-white/40 text-xs">Off</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <kbd className="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold text-white/60 bg-white/10 border border-white/20">
+                    ↑
+                  </kbd>
+                  <span className="text-white/40 text-xs">Loft</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            {/* Always-visible mobile hint */}
-            <p className="md:hidden text-center text-white/40 text-xs mt-1">
-              Tap the buttons above to play
-            </p>
-          </div>
+          {/* Always-visible mobile hint */}
+          <p className="md:hidden text-center text-white/40 text-xs mt-1">
+            Tap the buttons above to play
+          </p>
+
+          {/* Powerplay notice */}
+          {isPowerPlay && (
+            <div className="mt-2 text-center">
+              <span
+                className="text-xs font-semibold px-3 py-1 rounded-full animate-pulse"
+                style={{ background: "rgba(234,179,8,0.2)", color: "#fde047" }}
+              >
+                ⚡ POWERPLAY —{" "}
+                {
+                  powerPlayCommentary[
+                    Math.floor(gameState.ballsBowled / 7) %
+                      powerPlayCommentary.length
+                  ]
+                }
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

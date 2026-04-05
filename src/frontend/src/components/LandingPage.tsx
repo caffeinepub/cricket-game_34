@@ -15,31 +15,17 @@ import {
 import { motion } from "motion/react";
 import { useState } from "react";
 import type { GameMode } from "../App";
+import type { Difficulty } from "../types/game";
 
-// suppress unused Mail import lint warning by including it in a comment reference
+// suppress unused Mail import lint warning
 void Mail;
 
 const LEADERBOARD = [
-  {
-    rank: 1,
-    name: "Virat K.",
-    score: 892,
-    country: "\ud83c\uddee\ud83c\uddf3",
-  },
-  {
-    rank: 2,
-    name: "Steve S.",
-    score: 854,
-    country: "\ud83c\udde6\ud83c\uddfa",
-  },
-  { rank: 3, name: "Kane W.", score: 801, country: "\ud83c\uddf3\ud83c\uddff" },
-  { rank: 4, name: "Ben S.", score: 776, country: "\ud83c\udff4" },
-  {
-    rank: 5,
-    name: "Rohit S.",
-    score: 751,
-    country: "\ud83c\uddee\ud83c\uddf3",
-  },
+  { rank: 1, name: "Virat K.", score: 892, country: "🇮🇳" },
+  { rank: 2, name: "Steve S.", score: 854, country: "🇦🇺" },
+  { rank: 3, name: "Kane W.", score: 801, country: "🇳🇿" },
+  { rank: 4, name: "Ben S.", score: 776, country: "🏴" },
+  { rank: 5, name: "Rohit S.", score: 751, country: "🇮🇳" },
 ];
 
 const GAME_MODES: Array<{
@@ -51,35 +37,49 @@ const GAME_MODES: Array<{
 }> = [
   {
     id: "t20",
-    icon: "\ud83c\udfc6",
+    icon: "🏆",
     title: "T20 World Cup",
-    desc: "5 overs, chase 180",
+    desc: "20 overs, chase 120-140 runs",
     color: "from-green-600 to-green-800",
   },
   {
     id: "super-over",
-    icon: "\u26a1",
+    icon: "⚡",
     title: "Super Over",
-    desc: "1 over, chase 20",
+    desc: "1 over showdown, chase 8-12",
     color: "from-amber-600 to-orange-700",
   },
   {
     id: "quick",
-    icon: "\ud83c\udfcf",
+    icon: "🏏",
     title: "Quick Match",
-    desc: "3 overs, chase 50",
+    desc: "3 overs, chase 25-35",
     color: "from-blue-600 to-blue-800",
   },
 ];
 
+const CRICKET_FACTS = [
+  "🏏 MS Dhoni has the most finishes in T20Is",
+  "⚡ The fastest T20 century was scored off just 35 balls by Rohit Sharma",
+  "🏆 India won the 2024 T20 World Cup, defeating South Africa in the final",
+  "🔥 Chris Gayle holds the record for most T20 international sixes",
+  "🏏 Virat Kohli is the highest run-scorer in T20 World Cup history",
+];
+
 interface Props {
-  onPlay: (mode: GameMode) => void;
+  onPlay: (mode: GameMode, difficulty?: Difficulty) => void;
+  difficulty: Difficulty;
 }
 
-export default function LandingPage({ onPlay }: Props) {
+export default function LandingPage({
+  onPlay,
+  difficulty: currentDifficulty,
+}: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] =
+    useState<Difficulty>(currentDifficulty);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +88,32 @@ export default function LandingPage({ onPlay }: Props) {
       setEmail("");
     }
   };
+
+  const difficultyButtons: {
+    id: Difficulty;
+    label: string;
+    color: string;
+    activeColor: string;
+  }[] = [
+    {
+      id: "easy",
+      label: "Easy",
+      color: "border-green-500 text-green-500",
+      activeColor: "bg-green-500 text-white",
+    },
+    {
+      id: "medium",
+      label: "Medium",
+      color: "border-amber-500 text-amber-500",
+      activeColor: "bg-amber-500 text-white",
+    },
+    {
+      id: "hard",
+      label: "Hard",
+      color: "border-red-500 text-red-500",
+      activeColor: "bg-red-500 text-white",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -99,7 +125,7 @@ export default function LandingPage({ onPlay }: Props) {
         <div className="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
           {/* Brand */}
           <div className="flex items-center gap-2">
-            <span className="text-2xl">\ud83c\udfcf</span>
+            <span className="text-2xl">🏏</span>
             <span className="font-display font-bold text-xl tracking-tight text-foreground">
               CRICKET <span className="text-primary">BLAST</span>
             </span>
@@ -125,7 +151,7 @@ export default function LandingPage({ onPlay }: Props) {
           <div className="hidden md:flex items-center gap-3">
             <Button
               data-ocid="header.primary_button"
-              onClick={() => onPlay("t20")}
+              onClick={() => onPlay("t20", selectedDifficulty)}
               className="bg-primary text-white rounded-full px-5 py-2 text-sm font-semibold hover:bg-primary/90 shadow-sm"
             >
               Play Now
@@ -170,7 +196,7 @@ export default function LandingPage({ onPlay }: Props) {
               ),
             )}
             <Button
-              onClick={() => onPlay("t20")}
+              onClick={() => onPlay("t20", selectedDifficulty)}
               className="bg-primary text-white rounded-full w-full"
               data-ocid="nav.primary_button"
             >
@@ -240,7 +266,7 @@ export default function LandingPage({ onPlay }: Props) {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.7 }}
-            className="text-center px-4 mb-8"
+            className="text-center px-4 mb-6"
           >
             <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-white drop-shadow-lg leading-tight">
               CRICKET
@@ -251,6 +277,30 @@ export default function LandingPage({ onPlay }: Props) {
             <p className="mt-3 text-white/85 text-lg sm:text-xl font-medium drop-shadow">
               Play. Smash. Win. The ultimate cricket experience.
             </p>
+          </motion.div>
+
+          {/* Difficulty selector */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="flex items-center gap-2 mb-4"
+          >
+            {difficultyButtons.map((btn) => (
+              <button
+                key={btn.id}
+                type="button"
+                onClick={() => setSelectedDifficulty(btn.id)}
+                data-ocid="hero.toggle"
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
+                  selectedDifficulty === btn.id
+                    ? btn.activeColor
+                    : `${btn.color} bg-transparent hover:opacity-80`
+                }`}
+              >
+                {btn.label}
+              </button>
+            ))}
           </motion.div>
 
           {/* Action control bar */}
@@ -265,26 +315,33 @@ export default function LandingPage({ onPlay }: Props) {
             }}
           >
             <p className="text-white/60 text-xs uppercase tracking-wider text-center mb-2">
-              Batsman Actions
+              Choose Your Mode
             </p>
             <div className="flex items-center gap-3">
-              {[
-                "\ud83d\udee1\ufe0f Defend",
-                "\ud83c\udfcf Drive",
-                "\ud83d\udcaa Pull",
-                "\ud83d\udd04 Sweep",
-                "\ud83d\ude80 Loft",
-              ].map((action) => (
-                <button
-                  key={action}
-                  type="button"
-                  onClick={() => onPlay("t20")}
-                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-colors rounded-lg px-3 py-1.5 text-white text-xs font-medium"
-                  data-ocid="hero.button"
-                >
-                  {action}
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => onPlay("t20", selectedDifficulty)}
+                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-colors rounded-lg px-3 py-1.5 text-white text-xs font-medium"
+                data-ocid="hero.primary_button"
+              >
+                🏆 T20 Cup
+              </button>
+              <button
+                type="button"
+                onClick={() => onPlay("super-over", selectedDifficulty)}
+                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-colors rounded-lg px-3 py-1.5 text-white text-xs font-medium"
+                data-ocid="hero.button"
+              >
+                ⚡ Super Over
+              </button>
+              <button
+                type="button"
+                onClick={() => onPlay("quick", selectedDifficulty)}
+                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-colors rounded-lg px-3 py-1.5 text-white text-xs font-medium"
+                data-ocid="hero.button"
+              >
+                🏏 Quick Match
+              </button>
             </div>
           </motion.div>
         </div>
@@ -305,7 +362,7 @@ export default function LandingPage({ onPlay }: Props) {
               </div>
               <div>
                 <p className="text-white font-semibold text-sm">R. Sharma</p>
-                <p className="text-blue-200 text-xs">64 (38) \u2022 SR: 168</p>
+                <p className="text-blue-200 text-xs">64 (38) • SR: 168</p>
               </div>
             </div>
           </motion.div>
@@ -341,6 +398,27 @@ export default function LandingPage({ onPlay }: Props) {
         </div>
       </section>
 
+      {/* Cricket Facts Ticker */}
+      <div
+        className="overflow-hidden py-2"
+        style={{ background: "#0E3B1F" }}
+        data-ocid="ticker.section"
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className="shrink-0 px-3 py-1 text-xs font-bold uppercase tracking-wider"
+            style={{ color: "#6BD96B" }}
+          >
+            🏏 FACTS
+          </span>
+          <div className="flex-1 overflow-hidden">
+            <div className="animate-marquee whitespace-nowrap text-white/80 text-xs">
+              {CRICKET_FACTS.join("    •    ")}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Below Hero: 3-column section */}
       <section className="bg-white py-16 px-6" data-ocid="features.section">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -359,7 +437,7 @@ export default function LandingPage({ onPlay }: Props) {
               </span>
             </div>
             <h2 className="font-display text-3xl font-bold text-foreground leading-tight">
-              Play Instantly \u2014
+              Play Instantly —
               <span className="text-primary"> No Download Required</span>
             </h2>
             <p className="text-foreground/65 text-sm leading-relaxed">
@@ -368,7 +446,7 @@ export default function LandingPage({ onPlay }: Props) {
               Free to play, always thrilling.
             </p>
             <Button
-              onClick={() => onPlay("t20")}
+              onClick={() => onPlay("t20", selectedDifficulty)}
               data-ocid="features.primary_button"
               className="w-fit bg-primary text-white rounded-full px-6 py-2 text-sm font-semibold hover:bg-primary/90 shadow-sm flex items-center gap-2"
             >
@@ -397,7 +475,7 @@ export default function LandingPage({ onPlay }: Props) {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: 0.2 + i * 0.1 }}
-                  onClick={() => onPlay(mode.id)}
+                  onClick={() => onPlay(mode.id, selectedDifficulty)}
                   data-ocid={`game-mode.button.${i + 1}`}
                   className="w-full flex items-center gap-4 bg-white border border-border rounded-2xl p-4 shadow-card hover:shadow-md hover:-translate-y-0.5 transition-all text-left group"
                 >
@@ -447,7 +525,7 @@ export default function LandingPage({ onPlay }: Props) {
                 }}
               >
                 <p className="text-white font-semibold text-sm">
-                  \ud83c\udfc6 Top 5 Players
+                  🏆 Top 5 Players
                 </p>
               </div>
               <div className="divide-y divide-border">
@@ -505,7 +583,7 @@ export default function LandingPage({ onPlay }: Props) {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">\ud83c\udfcf</span>
+                <span className="text-2xl">🏏</span>
                 <span className="font-display font-bold text-white text-lg">
                   CRICKET BLAST
                 </span>
@@ -569,7 +647,7 @@ export default function LandingPage({ onPlay }: Props) {
                   className="text-green-300 text-sm font-medium"
                   data-ocid="newsletter.success_state"
                 >
-                  \u2713 You're subscribed!
+                  ✓ You're subscribed!
                 </p>
               ) : (
                 <form onSubmit={handleSubscribe} className="flex gap-2">
@@ -597,7 +675,7 @@ export default function LandingPage({ onPlay }: Props) {
           {/* Bottom bar */}
           <div className="border-t border-white/15 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-white/40 text-xs">
-              \u00a9 {new Date().getFullYear()}. Built with \u2764\ufe0f using{" "}
+              © {new Date().getFullYear()}. Built with ❤️ using{" "}
               <a
                 href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
                 target="_blank"
@@ -608,7 +686,7 @@ export default function LandingPage({ onPlay }: Props) {
               </a>
             </p>
             <p className="text-white/40 text-xs">
-              \ud83c\udfcf Cricket Blast \u2014 Play. Smash. Win.
+              🏏 Cricket Blast — Play. Smash. Win.
             </p>
           </div>
         </div>
